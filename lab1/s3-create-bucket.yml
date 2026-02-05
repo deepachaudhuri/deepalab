@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "CloudFormation template to create an S3 bucket. The bucket name is formed as 'app-<UAI>-<BucketName>' where `UAI` must start with 'uai' followed by 7 digits (for example: uai0123456) for a total length of 10 characters. The resulting bucket name must be globally unique."
+
+Parameters:
+  UAI:
+    Type: String
+    Description: "Required: UAI identifier starting with 'uai' followed by 7 digits (lowercase 'uai' then 7 numbers). Example: uai0123456"
+    AllowedPattern: '^uai[0-9]{7}$'
+    MinLength: 10
+    MaxLength: 10
+    ConstraintDescription: "UAI must start with 'uai' and be followed by exactly 7 digits (total length 10)."
+
+  BucketName:
+    Type: String
+    Description: "Required: logical bucket name (will be appended after app-<UAI>-). Use lowercase letters, numbers and hyphens."
+    AllowedPattern: '^[a-z0-9-]+$'
+    MinLength: 3
+    MaxLength: 48
+    ConstraintDescription: "BucketName must be 3-48 characters using lowercase letters, numbers and hyphens. The final bucket name will be 'app-<UAI>-<BucketName>' and must be <=63 characters."
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "app-${UAI}-${BucketName}"
+      Tags:
+        - Key: CreatedByStack
+          Value: !Ref "AWS::StackName"
+        - Key: UAI
+          Value: !Ref UAI
+        - Key: BucketName
+          Value: !Sub "app-${UAI}-${BucketName}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  BucketName:
+    Description: "Name of the created S3 bucket"
+    Value: !Ref S3Bucket
