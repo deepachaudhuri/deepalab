@@ -21,8 +21,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      CFN_UAI: ${{ secrets.CFN_UAI }}
-      CFN_BUCKETNAME: ${{ secrets.CFN_BUCKETNAME }}
       CFN_ARTIFACTS_BUCKET: ${{ secrets.CFN_ARTIFACTS_BUCKET }}
     steps:
       - uses: actions/checkout@v4
@@ -46,19 +44,35 @@ jobs:
 
           PARAMS_FILE="lab1/cfn-params.env"
           if [ -f "$PARAMS_FILE" ]; then
-            # shellcheck disable=SC1090
-            . "$PARAMS_FILE"
-            # values from file will populate UAI and BucketName variables if not provided
-            if [ -z "$UAI" ] && [ -n "$UAI" ]; then :; fi
+            # Read specific keys only to avoid polluting the shell
+            while IFS='=' read -r key value; do
+              case "$key" in
+                UAI)
+                  if [ -z "$UAI" ]; then UAI="$value"; fi
+                  ;;
+                BucketName)
+                  if [ -z "$BUCKET" ]; then BUCKET="$value"; fi
+                  ;;
+                CFN_ARTIFACTS_BUCKET)
+                  if [ -z "${CFN_ARTIFACTS_BUCKET:-}" ]; then CFN_ARTIFACTS_BUCKET="$value"; fi
+                  ;;
+              esac
+            done < <(grep -E '^(UAI|BucketName|CFN_ARTIFACTS_BUCKET)=' "$PARAMS_FILE" || true)
           fi
 
-          # If still empty, fallback to secrets injected as job env vars
-          if [ -z "$UAI" ]; then UAI="$CFN_UAI"; fi
-          if [ -z "$BUCKET" ]; then BUCKET="$CFN_BUCKETNAME"; fi
+          # If still empty, fallback to repo secret for artifacts bucket only
+          if [ -z "${CFN_ARTIFACTS_BUCKET:-}" ]; then
+            CFN_ARTIFACTS_BUCKET="${{ secrets.CFN_ARTIFACTS_BUCKET }}"
+          fi
 
           if [ -z "$UAI" ] || [ -z "$BUCKET" ]; then
-            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs, lab1/cfn-params.env, or repository secrets CFN_UAI/CFN_BUCKETNAME"
+            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs or lab1/cfn-params.env"
             exit 1
+          fi
+
+          # Export the artifacts bucket for later steps
+          if [ -n "${CFN_ARTIFACTS_BUCKET:-}" ]; then
+            echo "CFN_ARTIFACTS_BUCKET=$CFN_ARTIFACTS_BUCKET" >> $GITHUB_ENV
           fi
 
           echo "UAI=$UAI" >> $GITHUB_OUTPUT
