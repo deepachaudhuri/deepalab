@@ -21,6 +21,10 @@ Parameters:
     MaxLength: 48
     ConstraintDescription: "BucketName must be 3-48 characters using lowercase letters, numbers and hyphens. The final bucket name will be 'app-<UAI>-<BucketName>' and must be <=63 characters."
 
+  Environment:
+    Type: String
+    Description: "Environment tag for the bucket (e.g., development, production)."
+  
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -33,6 +37,8 @@ Resources:
           Value: !Ref UAI
         - Key: BucketName
           Value: !Sub "app-${UAI}-${BucketName}"
+        - Key: environment
+          Value: !Ref Environment
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
