@@ -10,7 +10,7 @@ Parameters:
     Description: "Logical bucket name passed down to nested S3 stack"
 
 Resources:
-  NestedS3Stack:
+  zaras3stack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: s3-create-bucket.yml
@@ -21,4 +21,4 @@ Resources:
 Outputs:
   NestedS3StackId:
     Description: "Nested S3 stack id"
-    Value: !Ref NestedS3Stack
+    Value: !Ref zaras3stack
