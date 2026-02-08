@@ -3,7 +3,9 @@ name: Deploy S3 CloudFormation
 on:
   push:
     paths:
+      - 'lab1/stack_input_dev.yml'
       - 'lab1/s3-create-bucket.yml'
+      - 'lab1/**.yml'
   workflow_dispatch:
     inputs:
       UAI:
@@ -18,6 +20,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CFN_UAI: ${{ secrets.CFN_UAI }}
+      CFN_BUCKETNAME: ${{ secrets.CFN_BUCKETNAME }}
+      CFN_ARTIFACTS_BUCKET: ${{ secrets.CFN_ARTIFACTS_BUCKET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,26 +37,79 @@ jobs:
       - name: Prepare CFN parameters
         id: params
         run: |
-          UAI="${{ github.event.inputs.UAI }}"
-          BUCKET="${{ github.event.inputs.BucketName }}"
-          if [ -z "$UAI" ]; then UAI="${{ secrets.CFN_UAI }}"; fi
-          if [ -z "$BUCKET" ]; then BUCKET="${{ secrets.CFN_BUCKETNAME }}"; fi
+          # Read inputs (set when manually dispatched)
+          UAI_INPUT="${{ github.event.inputs.UAI }}"
+          BUCKET_INPUT="${{ github.event.inputs.BucketName }}"
+          # Option order: workflow_dispatch inputs -> checked-in file lab1/cfn-params.env -> repo secrets
+          UAI="$UAI_INPUT"
+          BUCKET="$BUCKET_INPUT"
+
+          PARAMS_FILE="lab1/cfn-params.env"
+          if [ -f "$PARAMS_FILE" ]; then
+            # shellcheck disable=SC1090
+            . "$PARAMS_FILE"
+            # values from file will populate UAI and BucketName variables if not provided
+            if [ -z "$UAI" ] && [ -n "$UAI" ]; then :; fi
+          fi
+
+          # If still empty, fallback to secrets injected as job env vars
+          if [ -z "$UAI" ]; then UAI="$CFN_UAI"; fi
+          if [ -z "$BUCKET" ]; then BUCKET="$CFN_BUCKETNAME"; fi
+
           if [ -z "$UAI" ] || [ -z "$BUCKET" ]; then
-            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs or repository secrets CFN_UAI/CFN_BUCKETNAME"
+            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs, lab1/cfn-params.env, or repository secrets CFN_UAI/CFN_BUCKETNAME"
             exit 1
           fi
+
           echo "UAI=$UAI" >> $GITHUB_OUTPUT
           echo "BucketName=$BUCKET" >> $GITHUB_OUTPUT
 
-      - name: Validate CloudFormation template
+      - name: Validate UAI and BucketName
         run: |
-          aws cloudformation validate-template --template-body file://lab1/s3-create-bucket.yml
+          set -euo pipefail
+          UAI="${{ steps.params.outputs.UAI }}"
+          BUCKET="${{ steps.params.outputs.BucketName }}"
 
-      - name: Deploy CloudFormation stack
+          # Validate UAI pattern
+          if ! echo "$UAI" | grep -Eq '^uai[0-9]{7}$'; then
+            echo "UAI value '$UAI' is invalid. It must match ^uai[0-9]{7}$"
+            exit 1
+          fi
+
+          # Validate bucket name allowed chars
+          if ! echo "$BUCKET" | grep -Eq '^[a-z0-9-]+$'; then
+            echo "BucketName '$BUCKET' contains invalid characters. Use lowercase letters, numbers and hyphens only."
+            exit 1
+          fi
+
+          # Validate full bucket name length (app-<UAI>-<BucketName>) <= 63
+          FULL_NAME="app-${UAI}-${BUCKET}"
+          LEN=${#FULL_NAME}
+          if [ "$LEN" -gt 63 ]; then
+            echo "Final bucket name '$FULL_NAME' is too long ($LEN characters). Must be <= 63."
+            exit 1
+          fi
+
+      - name: Validate wrapper CloudFormation template
+        run: |
+          aws cloudformation validate-template --template-body file://lab1/stack_input_dev.yml
+
+      - name: Package nested templates to S3
+        run: |
+          if [ -z "${CFN_ARTIFACTS_BUCKET:-}" ]; then
+            echo "Missing CFN_ARTIFACTS_BUCKET secret. Set repository secret CFN_ARTIFACTS_BUCKET to an S3 bucket for packaged artifacts." >&2
+            exit 1
+          fi
+          aws cloudformation package \
+            --template-file lab1/stack_input_dev.yml \
+            --s3-bucket "$CFN_ARTIFACTS_BUCKET" \
+            --output-template-file lab1/packaged-stack.yml
+
+      - name: Deploy packaged CloudFormation stack
         run: |
           aws cloudformation deploy \
-            --template-file lab1/s3-create-bucket.yml \
-            --stack-name deepalab-s3-bucket \
+            --template-file lab1/packaged-stack.yml \
+            --stack-name deepalab-stack-dev \
             --parameter-overrides UAI=${{ steps.params.outputs.UAI }} BucketName=${{ steps.params.outputs.BucketName }} \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset

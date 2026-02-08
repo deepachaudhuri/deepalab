@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Wrapper stack for development environment that includes nested stacks (S3, EC2, etc.)."
+
+Parameters:
+  UAI:
+    Type: String
+    Description: "UAI identifier passed down to nested stacks"
+  BucketName:
+    Type: String
+    Description: "Logical bucket name passed down to nested S3 stack"
+
+Resources:
+  NestedS3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: s3-create-bucket.yml
+      Parameters:
+        UAI: !Ref UAI
+        BucketName: !Ref BucketName
+
+Outputs:
+  NestedS3StackId:
+    Description: "Nested S3 stack id"
+    Value: !Ref NestedS3Stack
