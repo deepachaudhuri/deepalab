@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Wrapper stack for development environment that includes nested stacks (S3, EC2, etc.)."
 
+
 Parameters:
   UAI:
     Type: String
