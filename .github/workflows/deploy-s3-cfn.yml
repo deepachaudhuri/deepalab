@@ -1,0 +1,30 @@
+name: Deploy S3 CloudFormation
+
+on:
+  push:
+    paths:
+      - 'lab1/s3-create-bucket.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Validate CloudFormation template
+        run: |
+          aws cloudformation validate-template --template-body file://lab1/s3-create-bucket.yml
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file lab1/s3-create-bucket.yml \
+            --stack-name deepalab-s3-bucket \
+            --capabilities CAPABILITY_NAMED_IAM
