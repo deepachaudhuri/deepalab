@@ -4,6 +4,16 @@ on:
   push:
     paths:
       - 'lab1/s3-create-bucket.yml'
+  workflow_dispatch:
+    inputs:
+      UAI:
+        description: 'UAI (e.g., uai0123456)'
+        required: false
+        type: string
+      BucketName:
+        description: 'BucketName (lowercase, hyphens allowed)'
+        required: false
+        type: string
 
 jobs:
   deploy:
@@ -18,6 +28,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Prepare CFN parameters
+        id: params
+        run: |
+          UAI="${{ github.event.inputs.UAI }}"
+          BUCKET="${{ github.event.inputs.BucketName }}"
+          if [ -z "$UAI" ]; then UAI="${{ secrets.CFN_UAI }}"; fi
+          if [ -z "$BUCKET" ]; then BUCKET="${{ secrets.CFN_BUCKETNAME }}"; fi
+          if [ -z "$UAI" ] || [ -z "$BUCKET" ]; then
+            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs or repository secrets CFN_UAI/CFN_BUCKETNAME"
+            exit 1
+          fi
+          echo "UAI=$UAI" >> $GITHUB_OUTPUT
+          echo "BucketName=$BUCKET" >> $GITHUB_OUTPUT
+
       - name: Validate CloudFormation template
         run: |
           aws cloudformation validate-template --template-body file://lab1/s3-create-bucket.yml
@@ -27,4 +51,6 @@ jobs:
           aws cloudformation deploy \
             --template-file lab1/s3-create-bucket.yml \
             --stack-name deepalab-s3-bucket \
-            --capabilities CAPABILITY_NAMED_IAM
+            --parameter-overrides UAI=${{ steps.params.outputs.UAI }} BucketName=${{ steps.params.outputs.BucketName }} \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
