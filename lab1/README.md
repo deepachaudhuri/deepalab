@@ -1,4 +1,4 @@
-# S3 Bucket CloudFormation Template
+# S3 Bucket CloudFormation Template 
 
 This folder contains a CloudFormation template that creates an S3 bucket.
 
