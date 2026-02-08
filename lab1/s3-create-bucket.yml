@@ -1,3 +1,6 @@
+# History
+# 2026-feb-07 - Initial version created by Deepa
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "CloudFormation template to create an S3 bucket. The bucket name is formed as 'app-<UAI>-<BucketName>' where `UAI` must start with 'uai' followed by 7 digits (for example: uai0123456) for a total length of 10 characters. The resulting bucket name must be globally unique."
 
