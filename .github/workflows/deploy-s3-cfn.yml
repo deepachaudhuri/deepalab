@@ -16,6 +16,10 @@ on:
         description: 'BucketName (lowercase, hyphens allowed)'
         required: false
         type: string
+      Environment:
+        description: 'Environment (e.g., development, production)'
+        required: false
+        type: string
 
 jobs:
   deploy:
@@ -38,9 +42,11 @@ jobs:
           # Read inputs (set when manually dispatched)
           UAI_INPUT="${{ github.event.inputs.UAI }}"
           BUCKET_INPUT="${{ github.event.inputs.BucketName }}"
+          ENVIRONMENT_INPUT="${{ github.event.inputs.Environment }}"
           # Option order: workflow_dispatch inputs -> checked-in file lab1/cfn-params.env -> repo secrets
           UAI="$UAI_INPUT"
           BUCKET="$BUCKET_INPUT"
+          ENVIRONMENT="$ENVIRONMENT_INPUT"
 
           PARAMS_FILE="lab1/cfn-params.env"
           if [ -f "$PARAMS_FILE" ]; then
@@ -53,11 +59,14 @@ jobs:
                 BucketName)
                   if [ -z "$BUCKET" ]; then BUCKET="$value"; fi
                   ;;
+                Environment)
+                  if [ -z "$ENVIRONMENT" ]; then ENVIRONMENT="$value"; fi
+                  ;;
                 CFN_ARTIFACTS_BUCKET)
                   if [ -z "${CFN_ARTIFACTS_BUCKET:-}" ]; then CFN_ARTIFACTS_BUCKET="$value"; fi
                   ;;
               esac
-            done < <(grep -E '^(UAI|BucketName|CFN_ARTIFACTS_BUCKET)=' "$PARAMS_FILE" || true)
+            done < <(grep -E '^(UAI|BucketName|Environment|CFN_ARTIFACTS_BUCKET)=' "$PARAMS_FILE" || true)
           fi
 
           # If still empty, fallback to repo secret for artifacts bucket only
@@ -65,8 +74,8 @@ jobs:
             CFN_ARTIFACTS_BUCKET="${{ secrets.CFN_ARTIFACTS_BUCKET }}"
           fi
 
-          if [ -z "$UAI" ] || [ -z "$BUCKET" ]; then
-            echo "Missing UAI or BucketName. Provide via workflow_dispatch inputs or lab1/cfn-params.env"
+          if [ -z "$UAI" ] || [ -z "$BUCKET" ] || [ -z "$ENVIRONMENT" ]; then
+            echo "Missing UAI, BucketName, or Environment. Provide via workflow_dispatch inputs or lab1/cfn-params.env"
             exit 1
           fi
 
@@ -77,6 +86,7 @@ jobs:
 
           echo "UAI=$UAI" >> $GITHUB_OUTPUT
           echo "BucketName=$BUCKET" >> $GITHUB_OUTPUT
+          echo "Environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
 
       - name: Validate UAI and BucketName
         run: |
@@ -124,6 +134,6 @@ jobs:
           aws cloudformation deploy \
             --template-file lab1/packaged-stack.yml \
             --stack-name deepalab-stack-dev \
-            --parameter-overrides UAI=${{ steps.params.outputs.UAI }} BucketName=${{ steps.params.outputs.BucketName }} \
+            --parameter-overrides UAI=${{ steps.params.outputs.UAI }} BucketName=${{ steps.params.outputs.BucketName }} Environment=${{ steps.params.outputs.Environment }} \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
