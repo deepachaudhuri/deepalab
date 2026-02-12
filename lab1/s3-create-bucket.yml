@@ -29,14 +29,14 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "app-${UAI}-${BucketName}"
+      BucketName: !Sub "app-${UAI}-${BucketName}-${Environment}"
       Tags:
         - Key: CreatedByStack
           Value: !Ref "AWS::StackName"
         - Key: UAI
           Value: !Ref UAI
         - Key: BucketName
-          Value: !Sub "app-${UAI}-${BucketName}"
+          Value: !Sub "app-${UAI}-${BucketName}-${Environment}"
         - Key: environment
           Value: !Ref Environment
       PublicAccessBlockConfiguration:
