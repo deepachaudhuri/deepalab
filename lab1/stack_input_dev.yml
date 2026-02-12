@@ -26,4 +26,4 @@ Resources:
 Outputs:
   NestedS3StackId:
     Description: "Nested S3 stack id"
-    Value: !Ref zaras3stack
+    Value: !Ref devZaraS3Stack
