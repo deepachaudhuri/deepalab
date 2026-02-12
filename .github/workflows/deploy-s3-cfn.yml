@@ -3,7 +3,7 @@ name: Deploy S3 CloudFormation
 on:
   push:
     paths:
-      - 'lab1/stack_input_dev.yml'
+      - 'lab1/stack_master.yml'
       - 'lab1/s3-create-bucket.yml'
       - 'lab1/**.yml'
       - 'lab1/cfn-params.env'
