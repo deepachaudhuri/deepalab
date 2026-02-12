@@ -14,7 +14,7 @@ Parameters:
 
 
 Resources:
-  dev-zaras3stack:
+  devZaraS3Stack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: s3-create-bucket.yml
