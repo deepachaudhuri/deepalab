@@ -117,7 +117,7 @@ jobs:
 
       - name: Validate wrapper CloudFormation template
         run: |
-          aws cloudformation validate-template --template-body file://lab1/stack_input_dev.yml
+          aws cloudformation validate-template --template-body file://lab1/stack_master.yml
 
       - name: Package nested templates to S3
         run: |
@@ -126,7 +126,7 @@ jobs:
             exit 1
           fi
           aws cloudformation package \
-            --template-file lab1/stack_input_dev.yml \
+            --template-file lab1/stack_master.yml \
             --s3-bucket "$CFN_ARTIFACTS_BUCKET" \
             --output-template-file lab1/packaged-stack.yml
 
